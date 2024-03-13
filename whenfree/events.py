@@ -64,7 +64,9 @@ class Event:
 
     @classmethod
     def from_gevent(cls, gevent):
-        start_dt, end_dt, is_all_day = parse_google_start_end(gevent["start"], gevent["end"])
+        start_dt, end_dt, is_all_day = parse_google_start_end(
+            gevent["start"], gevent["end"]
+        )
         return cls(
             start_time=start_dt,
             end_time=end_dt,
@@ -155,7 +157,7 @@ def get_events_google(
     return list(
         merge_events(
             [
-                (print(f'{e.summary} {e.start_time}'), e)[1]
+                e
                 for e in (
                     Event.from_gevent(ge)
                     for ge in get_google_events_raw(
