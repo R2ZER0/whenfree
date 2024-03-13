@@ -1,1 +1,7 @@
 env/
+.ve/
+
+.env.local
+token.json
+credentials.json
+credentials.json.*

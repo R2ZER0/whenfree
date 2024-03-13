@@ -97,16 +97,16 @@ new Vue({
       },
       selectDateRange(date) {
           the_date = new Date(date)
-          if(the_date.getDay() == 0) {
+          /*if(the_date.getDay() == 0) {
               the_date.setDate(the_date.getDate() - 2)
           } else if(the_date.getDay() == 6) {
               the_date.setDate(the_date.getDate() - 1)
-          }
+          }*/
           location.href = this.calendarUrlTemplate.replace(SETTINGS.urlReplacement, the_date.toISOString().split('T')[0])
       },
     },
     mounted () {
-      this.$refs.calendar.scrollToTime('07:00')
+      this.$refs.calendar.scrollToTime('08:00')
     },
 })
 </script>

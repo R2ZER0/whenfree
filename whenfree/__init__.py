@@ -67,7 +67,7 @@ def create_app():
             days=focus_date.weekday()
             + (settings.CALENDAR_SETTINGS["firstDayOfWeek"] - 1)
         )
-        last_day_of_week = previous_monday + datetime.timedelta(days=5)
+        last_day_of_week = previous_monday + datetime.timedelta(days=7)
 
         return render_template(
             "index.html.j2",

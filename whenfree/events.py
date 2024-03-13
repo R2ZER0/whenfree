@@ -1,11 +1,18 @@
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, tzinfo
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Any
 
 import pytz
 from caldav import DAVClient
 
-from whenfree.settings import CALDAV_PASSWORD, CALDAV_URL, CALDAV_USERNAME, TIMEZONE
+from whenfree.settings import (
+    CALDAV_PASSWORD,
+    CALDAV_URL,
+    CALDAV_USERNAME,
+    TIMEZONE,
+    CALENDAR_SOURCE,
+)
+from whenfree.google import get_google_events_raw, parse_google_start_end
 
 timezone = pytz.timezone(TIMEZONE)
 
@@ -23,7 +30,9 @@ class Event:
     description: str = ""
     attendees: List[str] = field(default_factory=list)
     timezone: tzinfo = pytz.UTC
+    is_all_day: Union[bool, None] = None
     vevent: str = None
+    gevent: Any = None
 
     @property
     def sort_datetime(self) -> datetime:
@@ -41,7 +50,7 @@ class Event:
 
     @property
     def all_day(self) -> bool:
-        return not isinstance(self.start_time, datetime)
+        return self.is_all_day or not isinstance(self.start_time, datetime)
 
     @property
     def duration(self) -> timedelta:
@@ -52,6 +61,19 @@ class Event:
     @property
     def multiday(self) -> bool:
         return self.duration.days > 1
+
+    @classmethod
+    def from_gevent(cls, gevent):
+        start_dt, end_dt, is_all_day = parse_google_start_end(gevent["start"], gevent["end"])
+        return cls(
+            start_time=start_dt,
+            end_time=end_dt,
+            is_all_day=is_all_day,
+            summary=gevent.get("summary", ""),
+            location=gevent.get("location"),
+            uid=gevent["id"],
+            gevent=gevent,
+        )
 
     @classmethod
     def from_vevent(cls, vevent, calendar, timezone: tzinfo):
@@ -113,6 +135,45 @@ def get_days_before_and_after(
 
 
 def get_events(
+    search_start, search_end, calendars_to_include=None, **kwargs
+) -> List[Event]:
+    if CALENDAR_SOURCE == "caldav":
+        return get_events_caldav(
+            search_start, search_end, calendars_to_include, **kwargs
+        )
+    elif CALENDAR_SOURCE == "google":
+        return get_events_google(
+            search_start, search_end, calendars_to_include, **kwargs
+        )
+    else:
+        raise NotImplementedError
+
+
+def get_events_google(
+    search_start, search_end, calendars_to_include=None, **kwargs
+) -> List[Event]:
+    return list(
+        merge_events(
+            [
+                (print(f'{e.summary} {e.start_time}'), e)[1]
+                for e in (
+                    Event.from_gevent(ge)
+                    for ge in get_google_events_raw(
+                        start=search_start,
+                        end=search_end,
+                        calendar_ids=calendars_to_include
+                        if calendars_to_include is not None
+                        and calendars_to_include != [""]
+                        else ["primary"],
+                    )
+                )
+                if not (bool(kwargs.get("ignoreAllDayEvents")) and e.all_day)
+            ]
+        )
+    )
+
+
+def get_events_caldav(
     search_start, search_end, calendars_to_include=None, **kwargs
 ) -> List[Event]:
     client = DAVClient(
